@@ -1,43 +1,38 @@
 let activeTabId = null;
-let startTime = null;
+let activeTabStartTime = null;
 
-chrome.tabs.onActivated.addListener((activeInfo) => {
-  if (activeTabId) {
-    chrome.tabs.get(activeTabId, (tab) => {
-      const endTime = new Date().getTime();
-      const timeSpent = endTime - startTime;
-      saveTime(tab.url, timeSpent);
-    });
-  }
-
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  await trackActiveTime();
   activeTabId = activeInfo.tabId;
-  startTime = new Date().getTime();
+  activeTabStartTime = Date.now();
 });
 
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (tabId === activeTabId && changeInfo.status === 'complete') {
-    const endTime = new Date().getTime();
-    const timeSpent = endTime - startTime;
-    saveTime(tab.url, timeSpent);
-    startTime = new Date().getTime();
+    await trackActiveTime();
+    activeTabStartTime = Date.now();
   }
 });
 
-chrome.tabs.onRemoved.addListener((tabId) => {
+chrome.tabs.onRemoved.addListener(async (tabId) => {
   if (tabId === activeTabId) {
-    const endTime = new Date().getTime();
-    const timeSpent = endTime - startTime;
-    chrome.tabs.get(tabId, (tab) => {
-      saveTime(tab.url, timeSpent);
-    });
+    await trackActiveTime();
     activeTabId = null;
-    startTime = null;
+    activeTabStartTime = null;
   }
 });
 
-function saveTime(url, timeSpent) {
-  chrome.storage.local.get([url], (result) => {
-    const totalTime = (result[url] || 0) + timeSpent;
-    chrome.storage.local.set({ [url]: totalTime });
+async function trackActiveTime() {
+  if (activeTabId === null || activeTabStartTime === null) return;
+  
+  const endTime = Date.now();
+  const duration = endTime - activeTabStartTime;
+  const tab = await chrome.tabs.get(activeTabId);
+  const url = new URL(tab.url);
+  const domain = url.hostname;
+
+  chrome.storage.local.get([domain], (result) => {
+    const totalTime = (result[domain] || 0) + duration;
+    chrome.storage.local.set({ [domain]: totalTime });
   });
 }

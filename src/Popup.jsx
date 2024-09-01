@@ -7,25 +7,32 @@ const Popup = () => {
   const [sortOption, setSortOption] = useState("timeDesc");
 
   useEffect(() => {
-    chrome.storage.local.get(null, (items) => {
-      const websiteList = [];
-      let total = 0;
-      let count = 0; // Initialize website count
+    const fetchData = () => {
+      chrome.storage.local.get(null, (items) => {
+        const websiteList = [];
+        let total = 0;
+        let count = 0; // Initialize website count
 
-      for (const [url, time] of Object.entries(items)) {
-        if (typeof time === "number") {
-          const timeSpent = (time / 1000).toFixed(2); // Convert to seconds
-          websiteList.push({ domain: url, timeSpent });
-          total += parseFloat(timeSpent); // Accumulate total time
-          count++; // Increment website count
+        for (const [url, time] of Object.entries(items)) {
+          if (typeof time === "number") {
+            const timeSpent = (time / 1000).toFixed(2); // Convert to seconds
+            websiteList.push({ domain: url, timeSpent });
+            total += parseFloat(timeSpent); // Accumulate total time
+            count++; // Increment website count
+          }
         }
-      }
 
-      setTotalTime(total.toFixed(2)); // Update total time state
-      setNumWebsites(count); // Update number of websites visited
-      sortWebsites(websiteList, sortOption); // Sort websites based on the current option
-    });
-  }, [sortOption]); // Update when sortOption changes
+        setTotalTime(total.toFixed(2)); // Update total time state
+        setNumWebsites(count); // Update number of websites visited
+        sortWebsites(websiteList, sortOption); // Sort websites based on the current option
+      });
+    };
+
+    fetchData(); // Initial fetch
+    const interval = setInterval(fetchData, 5000); // Update every 5 seconds
+
+    return () => clearInterval(interval); // Cleanup interval on unmount
+  }, [sortOption]); // Dependency on sortOption
 
   const extractDomain = (url) => {
     try {
@@ -76,7 +83,6 @@ const Popup = () => {
   const totalTimeInSeconds = parseFloat(totalTime); // Convert total time to seconds
 
   return (
-
     <div className="w-96 p-6 bg-gradient-to-br from-blue-50 to-neutral-100 rounded-lg shadow-lg">
       <h1 className="text-3xl font-bold mb-4 text-neutral-800">Tracked Websites</h1>
 
